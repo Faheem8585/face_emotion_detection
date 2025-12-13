@@ -30,32 +30,22 @@ def load_detector(name):
 detector = load_detector(model_name)
 
 if use_webcam:
-    st.header("Webcam Live Feed")
-    run = st.checkbox('Run')
-    FRAME_WINDOW = st.image([])
+    st.header("Webcam Capture")
+    st.write("Click the button below to take a picture. (Note: Live video processing is not supported on Streamlit Cloud without additional setup).")
     
-    if run:
-        camera = cv2.VideoCapture(0)
-        if not camera.isOpened():
-            st.error("Could not open webcam. Please check permissions and ensure no other app is using it.")
-        else:
-            st.success("Webcam initialized successfully.")
-            
-            while run:
-                ret, frame = camera.read()
-                if not ret or frame is None:
-                    st.error("Failed to read frame from webcam.")
-                    break
-                    
-                # Pass BGR frame to detector
-                frame, detections = detector.detect_emotions(frame)
-                
-                # Convert to RGB for Streamlit display
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                FRAME_WINDOW.image(frame)
-            
-            camera.release()
+    img_file_buffer = st.camera_input("Take a picture")
+    
+    if img_file_buffer is not None:
+        # To read image file buffer with OpenCV:
+        bytes_data = img_file_buffer.getvalue()
+        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+        
+        # Run detection
+        processed_img, detections = detector.detect_emotions(cv2_img)
+        
+        st.image(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB), caption='Processed Image', use_column_width=True)
+        st.write("Detections:")
+        st.json(detections)
 else:
     st.header("Image Upload")
     uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
