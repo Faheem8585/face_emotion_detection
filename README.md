@@ -1,6 +1,6 @@
 # Face Emotion Detection
 
-A robust machine learning pipeline for real-time face emotion detection, capable of recognizing 7 emotions (Angry, Disgust, Fear, Happy, Sad, Surprise, Neutral) from images and video streams.
+A robust machine learning pipeline for real-time face emotion detection, capable of recognizing 7 emotions (Angry, Disgust, Fear, Happy, Sad, Surprise, Neutral) from images and Live camera.
 
 ## Features
 
