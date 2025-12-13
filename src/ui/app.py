@@ -3,8 +3,13 @@ import cv2
 import numpy as np
 from PIL import Image
 import tempfile
-from src.inference.detector import EmotionDetector
+import sys
 import os
+
+# Add project root to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from src.inference.detector import EmotionDetector
 
 st.set_page_config(page_title="Face Emotion Detection", layout="wide")
 
