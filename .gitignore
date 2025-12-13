@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mac
+.DS_Store
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+
+# Project specific
+data/raw/
+experiments/exp1/logs/
+# Keep the best model for the user to run the app, but usually we gitignore models. 
+# Since the user wants to push to github, maybe they want the model? 
+# Standard practice is NOT to push large models. 
+# But for this specific request "clean directory that I can push", I'll leave the model 
+# unless it's too large (>100MB). The model is ~45MB so it fits in GitHub.
+
+# Logs
+*.log

@@ -1,0 +1,15 @@
+data:
+  csv_file: "data/raw/fer2013.csv"
+  batch_size: 64
+  num_workers: 4
+
+model:
+  name: "resnet18" # or "mobilenet"
+  num_classes: 7
+  pretrained: true
+
+training:
+  epochs: 50
+  learning_rate: 0.001
+  save_dir: "experiments/exp1"
+  device: "cuda" # or "cpu" or "mps" for mac
