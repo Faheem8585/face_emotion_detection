@@ -1,4 +1,5 @@
 import cv2
+import mediapipe as mp
 import torch
 import numpy as np
 import os
@@ -13,7 +14,7 @@ class EmotionDetector:
         
         # Load weights
         if model_path and os.path.exists(model_path):
-            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+            self.model.load_state_dict(torch.load(model_path, map_location=self.device, weights_only=True))
         else:
             print(f"Warning: Model path {model_path} not found. Using random weights.")
             
@@ -23,9 +24,9 @@ class EmotionDetector:
         self.transform = get_val_transforms()
         self.emotions = {0: 'Angry', 1: 'Disgust', 2: 'Fear', 3: 'Happy', 4: 'Sad', 5: 'Surprise', 6: 'Neutral'}
         
-        # OpenCV Haar Cascade Face Detection (more reliable for cloud deployment)
-        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-        self.face_cascade = cv2.CascadeClassifier(cascade_path)
+        # MediaPipe Face Detection
+        self.mp_face_detection = mp.solutions.face_detection
+        self.face_detection = self.mp_face_detection.FaceDetection(min_detection_confidence=0.5)
 
     def detect_emotions(self, frame):
         """
@@ -33,54 +34,54 @@ class EmotionDetector:
         Returns the frame with annotations and list of results.
         """
         h, w, _ = frame.shape
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.face_detection.process(rgb_frame)
         
-        # Detect faces using Haar Cascade
-        faces = self.face_cascade.detectMultiScale(
-            gray, 
-            scaleFactor=1.1, 
-            minNeighbors=5, 
-            minSize=(30, 30)
-        )
-        
-        if len(faces) > 0:
-            print(f"Detected {len(faces)} faces")
+        if results.detections:
+            print(f"Detected {len(results.detections)} faces")
         else:
             print("No faces detected")
         
         detections = []
         
-        for (x, y, w_box, h_box) in faces:
-            # Extract face region
-            face_roi = frame[y:y+h_box, x:x+w_box]
-            
-            # Preprocess
-            try:
-                # Convert to RGB and resize
-                face_rgb = cv2.cvtColor(face_roi, cv2.COLOR_BGR2RGB)
-                resized_face = cv2.resize(face_rgb, (48, 48))
-                img_tensor = self.transform(resized_face).unsqueeze(0).to(self.device)
+        if results.detections:
+            for detection in results.detections:
+                bboxC = detection.location_data.relative_bounding_box
+                x, y, w_box, h_box = int(bboxC.xmin * w), int(bboxC.ymin * h), int(bboxC.width * w), int(bboxC.height * h)
                 
-                # Inference
-                with torch.no_grad():
-                    outputs = self.model(img_tensor)
-                    probs = torch.softmax(outputs, dim=1)
-                    conf, pred = torch.max(probs, 1)
+                # Ensure bbox is within frame
+                x, y = max(0, x), max(0, y)
+                w_box, h_box = min(w - x, w_box), min(h - y, h_box)
+                
+                if w_box > 0 and h_box > 0:
+                    face_roi = rgb_frame[y:y+h_box, x:x+w_box]
                     
-                emotion = self.emotions[pred.item()]
-                confidence = conf.item()
-                
-                detections.append({
-                    'bbox': (x, y, w_box, h_box),
-                    'emotion': emotion,
-                    'confidence': confidence
-                })
-                
-                # Draw on frame
-                cv2.rectangle(frame, (x, y), (x + w_box, y + h_box), (0, 255, 0), 2)
-                label = f"{emotion}: {confidence:.2f}"
-                cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-            except Exception as e:
-                print(f"Error processing face: {e}")
+                    # Preprocess
+                    try:
+                        # Resize using OpenCV to keep it as numpy array
+                        resized_face = cv2.resize(face_roi, (48, 48))
+                        img_tensor = self.transform(resized_face).unsqueeze(0).to(self.device)
+                        
+                        # Inference
+                        with torch.no_grad():
+                            outputs = self.model(img_tensor)
+                            probs = torch.softmax(outputs, dim=1)
+                            conf, pred = torch.max(probs, 1)
+                            
+                        emotion = self.emotions[pred.item()]
+                        confidence = conf.item()
+                        
+                        detections.append({
+                            'bbox': (x, y, w_box, h_box),
+                            'emotion': emotion,
+                            'confidence': confidence
+                        })
+                        
+                        # Draw on frame
+                        cv2.rectangle(frame, (x, y), (x + w_box, y + h_box), (0, 255, 0), 2)
+                        label = f"{emotion}: {confidence:.2f}"
+                        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                    except Exception as e:
+                        print(f"Error processing face: {e}")
                         
         return frame, detections
